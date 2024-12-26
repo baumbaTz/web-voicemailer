@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voicemail Recorder</title>
+  <style>
+    form {
+      max-width: 400px;
+      margin: 20px auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    button {
+      padding: 10px;
+      font-size: 16px;
+    }
+    audio {
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <form id="voicemail-form">
+    <label for="name">Your Name:</label>
+    <input type="text" id="name" name="name" required placeholder="Enter your name">
+
+    <button id="start" type="button">Start Recording</button>
+    <button id="pause" type="button" disabled>Pause Recording</button>
+    <button id="resume" type="button" disabled>Resume Recording</button>
+    <button id="stop" type="button" disabled>Stop Recording</button>
+    <button id="re-record" type="button" disabled>Re-record</button>
+
+    <audio id="playback" controls style="display:none;"></audio>
+
+    <button id="submit" type="button" disabled>Send Voicemail</button>
+  </form>
+
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+    let isPaused = false;
+
+    const startButton = document.getElementById("start");
+    const pauseButton = document.getElementById("pause");
+    const resumeButton = document.getElementById("resume");
+    const stopButton = document.getElementById("stop");
+    const reRecordButton = document.getElementById("re-record");
+    const playback = document.getElementById("playback");
+    const submitButton = document.getElementById("submit");
+
+    startButton.addEventListener("click", async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const audioContext = new AudioContext();
+
+      const source = audioContext.createMediaStreamSource(stream);
+      const monoDestination = audioContext.createMediaStreamDestination();
+      const channelMerger = audioContext.createChannelMerger(1);
+
+      source.connect(channelMerger);
+      channelMerger.connect(monoDestination);
+
+      const monoStream = monoDestination.stream;
+
+      mediaRecorder = new MediaRecorder(monoStream);
+      audioChunks = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunks.push(event.data);
+        }
+      };
+
+      mediaRecorder.start();
+      isPaused = false;
+
+      startButton.disabled = true;
+      pauseButton.disabled = false;
+      stopButton.disabled = false;
+      playback.style.display = "none";
+    });
+
+    pauseButton.addEventListener("click", () => {
+      if (mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+        isPaused = true;
+
+        pauseButton.disabled = true;
+        resumeButton.disabled = false;
+      }
+    });
+
+    resumeButton.addEventListener("click", () => {
+      if (isPaused) {
+        mediaRecorder.start();
+        isPaused = false;
+
+        pauseButton.disabled = false;
+        resumeButton.disabled = true;
+      }
+    });
+
+    stopButton.addEventListener("click", () => {
+      mediaRecorder.stop();
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        playback.src = audioUrl;
+        playback.style.display = "block";
+
+        reRecordButton.disabled = false;
+        submitButton.disabled = false;
+      };
+
+      startButton.disabled = false;
+      pauseButton.disabled = true;
+      resumeButton.disabled = true;
+      stopButton.disabled = true;
+    });
+
+    reRecordButton.addEventListener("click", () => {
+      audioChunks = [];
+      playback.style.display = "none";
+      playback.src = "";
+      reRecordButton.disabled = true;
+      submitButton.disabled = true;
+    });
+
+    submitButton.addEventListener("click", async () => {
+      const name = document.getElementById("name").value.trim();
+      if (!name) {
+        alert("Please enter your name.");
+        return;
+      }
+
+      const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("audio", audioBlob);
+
+      const response = await fetch("/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        alert("Voicemail sent successfully!");
+        reRecordButton.click();
+      } else {
+        alert("Failed to send voicemail.");
+      }
+    });
+  </script>
+</body>
+</html>
