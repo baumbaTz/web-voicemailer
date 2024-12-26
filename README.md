@@ -1,3 +1,5 @@
+untested as of 2024-12-26 4pm CET :)
+
 # Voicemail Recording and Transcription System
 
 This project provides a complete solution for recording, uploading, and transcribing audio voicemails. It features a user-friendly interface for recording messages and an admin panel for managing and transcribing voicemails on-demand using the lightweight and efficient `whisper.cpp` transcription tool.
