@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel</title>
+  <style>
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+    }
+    th {
+      background-color: #f4f4f4;
+    }
+    button {
+      padding: 5px 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Voicemail Admin Panel</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Filename</th>
+        <th>Duration</th>
+        <th>Timestamp</th>
+        <th>Played</th>
+        <th>Transcription</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="voicemails-table"></tbody>
+  </table>
+
+  <script>
+    async function fetchVoicemails() {
+      const response = await fetch("/list-voicemails");
+      const voicemails = await response.json();
+      const table = document.getElementById("voicemails-table");
+
+      table.innerHTML = "";
+      voicemails.forEach(vm => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${vm.name}</td>
+          <td>${vm.filename}</td>
+          <td>${vm.duration} seconds</td>
+          <td>${vm.timestamp}</td>
+          <td>${vm.played ? "Yes" : "No"}</td>
+          <td>${vm.transcription || "Not transcribed"}</td>
+          <td>
+            <button onclick="transcribeVoicemail(${vm.id})">Transcribe</button>
+          </td>
+        `;
+        table.appendChild(row);
+      });
+    }
+
+    async function transcribeVoicemail(id) {
+      const response = await fetch(`/transcribe/${id}`, { method: "POST" });
+      if (response.ok) {
+        alert("Transcription completed!");
+        fetchVoicemails();
+      } else {
+        alert("Failed to transcribe voicemail");
+      }
+    }
+
+    fetchVoicemails();
+  </script>
+</body>
+</html>
